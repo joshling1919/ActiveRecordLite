@@ -55,7 +55,7 @@ class SQLObject
   end
 
   def self.find(id)
-    p correct_row = DBConnection.execute(<<-SQL, id).first
+    correct_row = DBConnection.execute(<<-SQL, id).first
       SELECT
         *
       FROM
@@ -98,8 +98,7 @@ class SQLObject
           question_marks << "?)"
         end
       end
-    question_marks
-    *self.attribute_values
+
     DBConnection.execute(<<-SQL, *self.attribute_values)
       INSERT INTO
         #{self.class.table_name} #{col_names}
@@ -112,10 +111,33 @@ class SQLObject
   end
 
   def update
-    # ...
+    set_line = ""
+    self.class.columns.drop(1).each_with_index do |col_name, index|
+      if index == self.class.columns.drop(1).length - 1
+        set_line << "#{col_name} = ?"
+      else
+        set_line << "#{col_name} = ?, "
+      end
+    end
+
+    att_val = self.attribute_values.rotate
+
+    DBConnection.execute(<<-SQL, *att_val)
+      UPDATE
+        #{self.class.table_name}
+      SET
+        #{set_line}
+      WHERE
+        id = ?
+    SQL
+
   end
 
   def save
-    # ...
+    if self.id.nil?
+      self.insert
+    else
+      self.update
+    end 
   end
 end
