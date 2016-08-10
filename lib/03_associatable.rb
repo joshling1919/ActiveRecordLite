@@ -1,6 +1,6 @@
 require_relative '02_searchable'
 require 'active_support/inflector'
-
+require 'byebug'
 # Phase IIIa
 class AssocOptions
   attr_accessor(
@@ -20,41 +20,39 @@ end
 
 class BelongsToOptions < AssocOptions
   def initialize(name, options = {})
-    if options.empty?
-      @foreign_key = "#{name}Id".underscore.to_sym
-      @class_name = "#{name}".capitalize
-      @primary_key = :id
-    else
-      @foreign_key = options[:foreign_key]
-      @class_name = options[:class_name]
-      @primary_key = options[:primary_key]
-    end
+    @foreign_key = options[:foreign_key] || "#{name}Id".underscore.to_sym
+    @class_name = options[:class_name] || "#{name}".capitalize
+    @primary_key = options[:primary_key] || :id
   end
 end
 
 class HasManyOptions < AssocOptions
   def initialize(name, self_class_name, options = {})
-    if options.empty?
-      @foreign_key = "#{self_class_name}Id".underscore.to_sym
-      @class_name = "#{name}".capitalize.singularize
-      @primary_key = :id
-    else
-      @foreign_key = options[:foreign_key]
-      @class_name = options[:class_name]
-      @primary_key = options[:primary_key]
-    end
+    @foreign_key = options[:foreign_key] || "#{self_class_name}Id".underscore.to_sym
+    @class_name = options[:class_name] || "#{name}".capitalize.singularize
+    @primary_key = options[:primary_key] || :id
   end
 end
 
 module Associatable
   # Phase IIIb
   def belongs_to(name, options = {})
-    p name
-    p options = BelongsToOptions.new(name)
+    options = BelongsToOptions.new(name, options)
+    define_method(name) do
+      foreign_id = self.send(options.foreign_key) #foreign_key of 1
+      model = options.model_class
+      model.where(id: foreign_id).first
+    end
   end
 
   def has_many(name, options = {})
-    # ...
+    self_class_name = self.to_s
+    options = HasManyOptions.new(name, self_class_name, options)
+    define_method(name) do
+      foreign_id = self.id
+      model = options.model_class
+      model.where(options.foreign_key => foreign_id)
+    end
   end
 
   def assoc_options
